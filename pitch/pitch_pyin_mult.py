@@ -90,12 +90,13 @@ if "__main__" == __name__:
     f0_means = []
     for out_f0 in tqdm(outs_f0):
         f0_probs.append(out_f0[0])
-        f0_stds.append(out_f0[1])
-        f0_means.append(out_f0[2])
+        f0_means.append(out_f0[1])
+        f0_stds.append(out_f0[2])
+
 
     df["f0_prob"] = f0_probs
-    df["f0_std"] = f0_stds
     df["f0_mean"] = f0_means
+    df["f0_std"] = f0_stds
 
     df.to_csv("GPS_cmd_16k_renamed_pyin.csv", index=False)
     print("save file: GPS_cmd_16k_renamed_pyin.csv")
