@@ -1,0 +1,13 @@
+{
+  "name": "setup_1",
+  "database": {
+    "train": "lists/GPS_cmd_pyin_setup_1_train.csv",
+    "val": "lists/GPS_cmd_pyin_setup_1_val.csv",
+    "test": "lists/GPS_cmd_pyin_setup_1_test.csv"
+  },
+  "features": "spec",
+  "model": {
+      "batch_size": 64,
+      "epochs": 10
+  }
+}

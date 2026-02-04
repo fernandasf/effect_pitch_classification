@@ -1,15 +1,19 @@
 import os
 import pathlib
+import argparse
 
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import tensorflow as tf
 import pandas as pd
+import json
 
 from tensorflow.keras import layers
 from tensorflow.keras import models
 from IPython import display
+
+AUTOTUNE = tf.data.AUTOTUNE
 
 # Set the seed value for experiment reproducibility.
 seed = 42
@@ -30,6 +34,17 @@ def get_waveform_and_label(file_path, label):
   waveform = decode_audio(audio_binary)
   return waveform, label
 
+def get_spectrogram(waveform):
+  input_len = 16000
+  waveform = waveform[:input_len]
+  zero_padding = tf.zeros([16000] - tf.shape(waveform), dtype=tf.float32)
+  waveform = tf.cast(waveform, dtype=tf.float32)
+  equal_length = tf.concat([waveform, zero_padding], 0)
+  spectrogram = tf.signal.stft(equal_length, frame_length=255, frame_step=128)
+  spectrogram = tf.abs(spectrogram)
+  spectrogram = spectrogram[..., tf.newaxis]
+  return spectrogram
+
 def get_spectrogram_and_label_id(audio, label):
   spectrogram = get_spectrogram(audio)
   label_id = tf.argmax(label == LABELS)
@@ -40,6 +55,26 @@ def preprocess_dataset(files, labels):
   output_ds = files_ds.map(map_func=get_waveform_and_label, num_parallel_calls=AUTOTUNE)
   output_ds = output_ds.map(map_func=get_spectrogram_and_label_id, num_parallel_calls=AUTOTUNE)
   return output_ds
+
+def get_test_set(test_ds):
+    test_audio = []
+    test_labels = []
+    
+    for audio, label in test_ds:
+      test_audio.append(audio.numpy())
+      test_labels.append(label.numpy())
+    
+    test_audio = np.array(test_audio)
+    test_labels = np.array(test_labels)
+    return test_audio, test_labels
+
+def get_results(test_audio, test_labels):
+    y_pred = np.argmax(model.predict(test_audio), axis=1)
+    y_true = test_labels
+    
+    test_acc = sum(y_pred == y_true) / len(y_true)
+    print(f'Test set accuracy: {test_acc:.0%}')
+    return y_true, y_pred    
 
 def plot_curve(metrics, path):
     plt.plot(history.epoch, metrics['loss'], metrics['val_loss'])
@@ -57,16 +92,31 @@ def conf_matrix(y_true, y_pred, path):
     plt.ylabel('Label')
     plt.savefig(f"{path}/confusion_matrix.png")
 
+def selet_results_by_gender(df_test, x):
+    df_test_x = df_test[df_test["genders"] == x]
+    test_files_x, test_labels_x = get_files(df_test_x)
+    test_audio_x, test_labels_x = get_test_set(preprocess_dataset(test_files_x, test_labels_x))
+    y_true_x, y_pred_x = get_results(test_audio_x, test_labels_x)
+
 
 if __name__ == '__main__':
-    # Load dataset
-    print("Load dataset...")
-    abs_path = "../pitch/GPS_cmd_16k_renamed_pyin_avg_by_word_user"
-    # TODO: adjust the save path
-    exp_path = "results/"
-    df_train = pd.read_csv(f"{abs_path}_train.csv")
-    df_val = pd.read_csv(f"{abs_path}_val.csv")
-    df_test = pd.read_csv(f"{abs_path}_test.csv")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config", required=True)
+    args = parser.parse_args()
+    config_filepath = args.config
+
+    with open(config_filepath, "r") as f:
+        config = json.load(f)
+    
+    # Load dataset    
+    print("-------------- Load dataset --------------")
+
+    exp_path = f"results/{config['name']}"
+    os.makedirs(exp_path, exist_ok=True)
+    
+    df_train = pd.read_csv(config['database']['train'])
+    df_val = pd.read_csv(config['database']['val'])
+    df_test = pd.read_csv(config['database']['test'])
 
     LABELS = list(df_train["words"].unique())
     num_labels = len(LABELS)
@@ -77,25 +127,17 @@ if __name__ == '__main__':
 
     train_ds = preprocess_dataset(train_files, train_labels)
     val_ds = preprocess_dataset(val_files, val_labels)
-    test_ds = preprocess_dataset(test_files, test_labels)
-
-    batch_size = 64
-    train_ds = train_ds.batch(batch_size)
-    val_ds = val_ds.batch(batch_size)
-
-    train_ds = train_ds.cache().prefetch(AUTOTUNE)
-    val_ds = val_ds.cache().prefetch(AUTOTUNE)
-
-    # Extract info model
-    print("Get model...")
     
-    for spectrogram, _ in val_spectrogram_ds.take(1):
+    # Extract info model
+    print("-------------- Get model --------------")
+    
+    for spectrogram, _ in val_ds.take(1):
         input_shape = spectrogram.shape
     
     print('Input shape:', input_shape)
 
     norm_layer = layers.Normalization()
-    norm_layer.adapt(data=val_spectrogram_ds.map(map_func=lambda spec, label: spec))
+    norm_layer.adapt(data=val_ds.map(map_func=lambda spec, label: spec))
 
     model = models.Sequential([
         layers.Input(shape=input_shape),    
@@ -119,39 +161,46 @@ if __name__ == '__main__':
     metrics=['accuracy'],
     )
 
-    EPOCHS = 10
-    print(f"Start train! Num Epochs:  {EPOCHS}")
+    batch_size = config['model']['batch_size']
+    train_ds = train_ds.batch(batch_size)
+    train_ds = train_ds.cache().prefetch(AUTOTUNE)
+
+    val_ds = val_ds.batch(batch_size)
+    val_ds = val_ds.cache().prefetch(AUTOTUNE)
+
+    epochs = config['model']['epochs']
+    print(f"Start train! Num Epochs:  {epochs}")
 
     history = model.fit(
         train_ds,
         validation_data=val_ds,
-        epochs=EPOCHS,
+        epochs=epochs,
         callbacks=tf.keras.callbacks.EarlyStopping(verbose=1, patience=2),
     )
 
     metrics = history.history
     plot_curve(metrics, exp_path)
 
-    print("Test model...")
-    test_audio = []
-    test_labels = []
-    
-    for audio, label in test_ds:
-        test_audio.append(audio.numpy())
-        test_labels.append(label.numpy())
-    
-    test_audio = np.array(test_audio)
-    test_labels = np.array(test_labels)
+    model.save(f"{exp_path}/model.keras")
 
-    y_pred = np.argmax(model.predict(test_audio), axis=1)
-    y_true = test_labels
-    
-    test_acc = sum(y_pred == y_true) / len(y_true)
-    print(f'Test set accuracy - general: {test_acc:.0%}')
+    print("-------------- Test model --------------")
 
+    test_ds = preprocess_dataset(test_files, test_labels)
+    test_audio, test_labels = get_test_set(test_ds)
+
+    print("General results: ")
+    y_true, y_pred = get_results(test_audio, test_labels)
     conf_matrix(y_true, y_pred, exp_path)
 
-    # TODO: select performance by gender
+    print("Results by gender...")
+    
+    print("Accuracy Female: ")
+    selet_results_by_gender(df_test, "F")
+
+    print("Accuracy Male: ")
+    selet_results_by_gender(df_test, "M")    
+
+    # TODO: plot and check the train and distribution of pitch in the training and test
     
 
 
