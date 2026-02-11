@@ -1,5 +1,5 @@
 {
-  "name": "setup_1",
+  "name": "setup_2",
   "database": {
     "train": "lists/GPS_cmd_pyin_setup_1_train.csv",
     "val": "lists/GPS_cmd_pyin_setup_1_val.csv",
@@ -7,7 +7,7 @@
   },
   "features": "spec",
   "model": {
-      "shape_resize": [32, 32],
+      "shape_resize": [129, 32],
       "batch_size": 64,
       "epochs": 30
   }
