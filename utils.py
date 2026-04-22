@@ -1,5 +1,5 @@
 import numpy as np
-import librosa
+#import librosa
 import matplotlib.pyplot as plt
 import IPython.display as ipd
 
@@ -25,3 +25,12 @@ class UtilsIO():
     def save_txt(path, txt):
         with open(path, 'w') as f:
             f.writelines(txt)
+
+    @staticmethod
+    def adjust_audio_length(audio, max_samples):
+    if tf.shape(audio)[0] > max_samples:
+        new_audio = audio[:max_samples]
+    else:
+        padding = max_samples - tf.shape(audio)[0]
+        new_audio = tf.pad(audio, [[0, padding]])
+    return new_audio
