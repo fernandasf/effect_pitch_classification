@@ -1,17 +1,13 @@
 {
-  "name": "setup_1",
+  "name": "setup_1_mfcc",
   "database": {
     "train": "lists/GPS_cmd_pyin_setup_1_train.csv",
     "val": "lists/GPS_cmd_pyin_setup_1_val.csv",
     "test": "lists/GPS_cmd_pyin_setup_1_test.csv"
   },
-  "features": "spec",
   "model": {
       "shape_resize": [32, 32],
       "batch_size": 64,
       "epochs": 30
-  },
-  "params": {
-      "max_length": 16000
-  }    
+  }
 }

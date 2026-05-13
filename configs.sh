@@ -1,3 +1,2 @@
+pip install librosa
 
-
- source /home/ferreira/.virtualenvs/myvenv/bin/activate

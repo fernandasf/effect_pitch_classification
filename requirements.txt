@@ -1,2 +1,3 @@
-pip install crepe
-pip install librosa
+crepe
+librosa
+tensorflow_io
