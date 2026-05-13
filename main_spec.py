@@ -98,6 +98,14 @@ def select_results_by_gender(df_test, x):
     test_audio_x, test_labels_x = get_test_set(preprocess_dataset(test_files_x, test_labels_x))
     y_true_x, y_pred_x = get_results(test_audio_x, test_labels_x)
 
+def get_histogram(path, type_):
+    df = pd.read_csv(f"{path}_{type_}.csv")
+    plt.figure(figsize=(10, 4))
+    df["f0"].hist(bins=100, density=True)
+    df["f0"].plot.kde()
+    plt.title(f"Histogram - {type_}")
+    plt.savefig(f"{path}/Histogram_{type_}.png")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -201,7 +209,9 @@ if __name__ == '__main__':
     print("Accuracy Male: ")
     select_results_by_gender(df_test, "M")
 
-    # TODO: plot and check the train and distribution of pitch in the training and test
+    # plot the distribution of pitch in the training and test dataset
+    get_histogram(exp_path, "train")
+    get_histogram(exp_path, "test")
     
 
 

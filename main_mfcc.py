@@ -36,7 +36,7 @@ def get_waveform_and_label(file_path, label):
   waveform = decode_audio(audio_binary)
   return waveform, label
 
-def get_log_mel_spectrogram(waveform):
+def get_mfcc(waveform):
     waveform = UtilsIO.adjust_audio_length(waveform, MAX_LENGTH)
     waveform = tf.cast(waveform, dtype=tf.float32)
     stfts = tf.signal.stft(waveform, frame_length=255, frame_step=128)
@@ -50,17 +50,19 @@ def get_log_mel_spectrogram(waveform):
     mel_spectrograms.set_shape(spectrograms.shape[:-1].concatenate(
         linear_to_mel_weight_matrix.shape[-1:]))
     log_mel_spectrograms = tf.math.log(mel_spectrograms + 1e-6)
-    return log_mel_spectrograms[..., tf.newaxis] # Return (Frames, Bins, 1)
+    num_coef = 13
+    mfccs = tf.signal.mfccs_from_log_mel_spectrograms(log_mel_spectrograms)[..., :num_coef]
+    return mfccs[tf.newaxis, ...] # Return (1, Frames, coef)
 
-def get_log_mel_spectrogram_and_label_id(audio, label):
-  log_mel_spec = get_log_mel_spectrogram(audio)
+def get_mfcc_and_label_id(audio, label):
+  mfcc = get_mfcc(audio)
   label_id = tf.argmax(label == LABELS)
-  return log_mel_spec, label_id
+  return mfcc, label_id
 
 def preprocess_dataset(files, labels):
   files_ds = tf.data.Dataset.from_tensor_slices((files, labels))
-  output_ds = files_ds.map(map_func=get_log_mel_spectrogram_and_label_id, num_parallel_calls=AUTOTUNE)
-  output_ds = output_ds.map(map_func=get_log_mel_spectrogram_and_label_id, num_parallel_calls=AUTOTUNE)
+  output_ds = files_ds.map(map_func=get_mfcc_and_label_id, num_parallel_calls=AUTOTUNE)
+  output_ds = output_ds.map(map_func=get_mfcc_and_label_id, num_parallel_calls=AUTOTUNE)
   return output_ds
 
 def get_test_set(test_ds):
