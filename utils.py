@@ -2,6 +2,8 @@ import numpy as np
 #import librosa
 import matplotlib.pyplot as plt
 import IPython.display as ipd
+import tensorflow as tf
+
 
 class UtilsIO():
     def __init__(self):
@@ -28,9 +30,9 @@ class UtilsIO():
 
     @staticmethod
     def adjust_audio_length(audio, max_samples):
-    if tf.shape(audio)[0] > max_samples:
-        new_audio = audio[:max_samples]
-    else:
-        padding = max_samples - tf.shape(audio)[0]
-        new_audio = tf.pad(audio, [[0, padding]])
-    return new_audio
+        if tf.shape(audio)[0] > max_samples:
+            new_audio = audio[:max_samples]
+        else:
+            padding = max_samples - tf.shape(audio)[0]
+            new_audio = tf.pad(audio, [[0, padding]])
+        return new_audio

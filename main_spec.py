@@ -98,13 +98,13 @@ def select_results_by_gender(df_test, x):
     test_audio_x, test_labels_x = get_test_set(preprocess_dataset(test_files_x, test_labels_x))
     y_true_x, y_pred_x = get_results(test_audio_x, test_labels_x)
 
-def get_histogram(path, type_):
-    df = pd.read_csv(f"{path}_{type_}.csv")
+def get_histogram(exp_path, type_, input_path):
+    df = pd.read_csv(input_path)
     plt.figure(figsize=(10, 4))
     df["f0"].hist(bins=100, density=True)
     df["f0"].plot.kde()
     plt.title(f"Histogram - {type_}")
-    plt.savefig(f"{path}/Histogram_{type_}.png")
+    plt.savefig(f"{exp_path}/Histogram_{type_}.png")
 
 
 if __name__ == '__main__':
@@ -125,6 +125,8 @@ if __name__ == '__main__':
     df_train = pd.read_csv(config['database']['train'])
     df_val = pd.read_csv(config['database']['val'])
     df_test = pd.read_csv(config['database']['test'])
+
+    print("Train: ", len(df_train), "Val: ", len(df_val), "Test: ", len(df_test))
 
     LABELS = list(df_train["words"].unique())
     num_labels = len(LABELS)
@@ -210,8 +212,8 @@ if __name__ == '__main__':
     select_results_by_gender(df_test, "M")
 
     # plot the distribution of pitch in the training and test dataset
-    get_histogram(exp_path, "train")
-    get_histogram(exp_path, "test")
+    get_histogram(exp_path, "train", config['database']['train'])
+    get_histogram(exp_path, "test", config['database']['test'])
     
 
 

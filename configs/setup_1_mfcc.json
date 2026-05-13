@@ -9,5 +9,8 @@
       "shape_resize": [32, 32],
       "batch_size": 64,
       "epochs": 30
+  },
+  "params":{
+      "max_length": 19200
   }
 }
