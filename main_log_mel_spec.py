@@ -16,6 +16,7 @@ from IPython import display
 from utils import UtilsIO
 
 AUTOTUNE = tf.data.AUTOTUNE
+
 SAMPLE_RATE = 16000
 MAX_LENGTH = 19200
 
@@ -38,7 +39,7 @@ def get_waveform_and_label(file_path, label):
   waveform = decode_audio(audio_binary)
   return waveform, label
 
-def get_mfcc(waveform):
+def get_log_mel_spectrogram(waveform):
     waveform = UtilsIO.adjust_audio_length(waveform, MAX_LENGTH)
     waveform = tf.cast(waveform, dtype=tf.float32)
     stfts = tf.signal.stft(waveform, frame_length=255, frame_step=128)
@@ -52,19 +53,17 @@ def get_mfcc(waveform):
     mel_spectrograms.set_shape(spectrograms.shape[:-1].concatenate(
         linear_to_mel_weight_matrix.shape[-1:]))
     log_mel_spectrograms = tf.math.log(mel_spectrograms + 1e-6)
-    num_coef = 13
-    mfccs = tf.signal.mfccs_from_log_mel_spectrograms(log_mel_spectrograms)[..., :num_coef]
-    return mfccs[tf.newaxis, ...] # Return (1, Frames, coef)
+    return log_mel_spectrograms[..., tf.newaxis] # Return (Frames, Bins, 1)
 
-def get_mfcc_and_label_id(audio, label):
-  mfcc = get_mfcc(audio)
+def get_log_mel_spectrogram_and_label_id(audio, label):
+  log_mel_spec = get_log_mel_spectrogram(audio)
   label_id = tf.argmax(label == LABELS)
-  return mfcc, label_id
+  return log_mel_spec, label_id
 
 def preprocess_dataset(files, labels):
   files_ds = tf.data.Dataset.from_tensor_slices((files, labels))
   output_ds = files_ds.map(map_func=get_waveform_and_label, num_parallel_calls=AUTOTUNE)
-  output_ds = output_ds.map(map_func=get_mfcc_and_label_id, num_parallel_calls=AUTOTUNE)
+  output_ds = output_ds.map(map_func=get_log_mel_spectrogram_and_label_id, num_parallel_calls=AUTOTUNE)
   return output_ds
 
 def get_test_set(test_ds):
@@ -137,6 +136,8 @@ if __name__ == '__main__':
     df_train = pd.read_csv(config['database']['train'])
     df_val = pd.read_csv(config['database']['val'])
     df_test = pd.read_csv(config['database']['test'])
+
+    print("Train: ", len(df_train), "Val: ", len(df_val), "Test: ", len(df_test))
 
     LABELS = list(df_train["words"].unique())
     num_labels = len(LABELS)
@@ -220,7 +221,7 @@ if __name__ == '__main__':
 
     print("Accuracy Male: ")
     select_results_by_gender(df_test, "M")
-    
+
     # plot the distribution of pitch in the training and test dataset
     get_histogram(exp_path, "train", config['database']['train'])
     get_histogram(exp_path, "test", config['database']['test'])
