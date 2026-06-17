@@ -134,7 +134,7 @@ if __name__ == '__main__':
     train_files, train_labels = get_files(df_train)
     val_files, val_labels = get_files(df_val)
     test_files, test_labels = get_files(df_test)
-
+    
     train_ds = preprocess_dataset(train_files, train_labels)
     val_ds = preprocess_dataset(val_files, val_labels)
     
@@ -195,6 +195,7 @@ if __name__ == '__main__':
     plot_curve(metrics, exp_path)
 
     model.save(f"{exp_path}/model.keras")
+    
 
     print("________________ Test model ________________")
 
@@ -204,6 +205,32 @@ if __name__ == '__main__':
     print("General results: ")
     y_true, y_pred = get_results(test_audio, test_labels)
     conf_matrix(y_true, y_pred, exp_path)
+
+    def save_results(df_test, test_files, ground_truth, predicted, name):
+        genres = []
+        F0 = []
+        keywords = []
+        for path in test_files:
+            genre = df_test[df_test['filepaths'].str.contains(path)]["genders"].iloc[0]
+            f0 = df_test[df_test['filepaths'].str.contains(path)]["f0"].iloc[0]
+            keyword = df_test[df_test['filepaths'].str.contains(path)]["words"].iloc[0]
+            genres.append(genre)
+            F0.append(f0)
+            keywords.append(keyword)
+        
+        dict_ = {
+            "path": test_files,
+            "keyword": keywords,
+            "genres": genres,
+            "F0": F0,
+            "ground_truth": ground_truth,
+            "predicted": predicted            
+        }
+        df = pd.DataFrame(dict_)
+        df.to_csv(name, index=False)
+
+    name = f"{exp_path}/results_general_spec.csv"
+    save_results(df_test, test_files, test_labels, y_pred, name)
     
     print("Accuracy Female: ")
     select_results_by_gender(df_test, "F")
