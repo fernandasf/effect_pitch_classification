@@ -74,7 +74,7 @@ def get_results(test_audio, test_labels):
     
     test_acc = sum(y_pred == y_true) / len(y_true)
     print(f'Test set accuracy: {test_acc:.0%}')
-    return y_true, y_pred    
+    return y_true, y_pred, test_acc  
 
 def plot_curve(metrics, path):
     plt.plot(history.epoch, metrics['loss'], metrics['val_loss'])
@@ -96,7 +96,8 @@ def select_results_by_gender(df_test, x):
     df_test_x = df_test[df_test["genders"] == x]
     test_files_x, test_labels_x = get_files(df_test_x)
     test_audio_x, test_labels_x = get_test_set(preprocess_dataset(test_files_x, test_labels_x))
-    y_true_x, y_pred_x = get_results(test_audio_x, test_labels_x)
+    y_true_x, y_pred_x, test_acc_x = get_results(test_audio_x, test_labels_x)
+    return test_acc_x
 
 def get_histogram(exp_path, type_, input_path):
     df = pd.read_csv(input_path)
@@ -105,6 +106,29 @@ def get_histogram(exp_path, type_, input_path):
     df["f0"].plot.kde()
     plt.title(f"Histogram - {type_}")
     plt.savefig(f"{exp_path}/Histogram_{type_}.png")
+
+def save_results(df_test, test_files, ground_truth, predicted, name):
+    genres = []
+    F0 = []
+    keywords = []
+    for path in test_files:
+        genre = df_test[df_test['filepaths'].str.contains(path)]["genders"].iloc[0]
+        f0 = df_test[df_test['filepaths'].str.contains(path)]["f0"].iloc[0]
+        keyword = df_test[df_test['filepaths'].str.contains(path)]["words"].iloc[0]
+        genres.append(genre)
+        F0.append(f0)
+        keywords.append(keyword)
+    
+    dict_ = {
+        "path": test_files,
+        "keyword": keywords,
+        "genres": genres,
+        "F0": F0,
+        "ground_truth": ground_truth,
+        "predicted": predicted            
+    }
+    df = pd.DataFrame(dict_)
+    df.to_csv(name, index=False)
 
 
 if __name__ == '__main__':
@@ -203,40 +227,22 @@ if __name__ == '__main__':
     test_audio, test_labels = get_test_set(test_ds)
 
     print("General results: ")
-    y_true, y_pred = get_results(test_audio, test_labels)
+    y_true, y_pred, general_acc = get_results(test_audio, test_labels)
     conf_matrix(y_true, y_pred, exp_path)
-
-    def save_results(df_test, test_files, ground_truth, predicted, name):
-        genres = []
-        F0 = []
-        keywords = []
-        for path in test_files:
-            genre = df_test[df_test['filepaths'].str.contains(path)]["genders"].iloc[0]
-            f0 = df_test[df_test['filepaths'].str.contains(path)]["f0"].iloc[0]
-            keyword = df_test[df_test['filepaths'].str.contains(path)]["words"].iloc[0]
-            genres.append(genre)
-            F0.append(f0)
-            keywords.append(keyword)
-        
-        dict_ = {
-            "path": test_files,
-            "keyword": keywords,
-            "genres": genres,
-            "F0": F0,
-            "ground_truth": ground_truth,
-            "predicted": predicted            
-        }
-        df = pd.DataFrame(dict_)
-        df.to_csv(name, index=False)
 
     name = f"{exp_path}/results_general_spec.csv"
     save_results(df_test, test_files, test_labels, y_pred, name)
     
     print("Accuracy Female: ")
-    select_results_by_gender(df_test, "F")
+    acc_female = select_results_by_gender(df_test, "F")
 
     print("Accuracy Male: ")
-    select_results_by_gender(df_test, "M")
+    acc_male = select_results_by_gender(df_test, "M")
+
+    with open(f"{exp_path}/summary_results.txt", "w") as f:
+        f.write(f"General accuracy: {general_acc:.0%}\n")
+        f.write(f"Female accuracy: {acc_female:.0%}\n")
+        f.write(f"Male accuracy: {acc_male:.0%}\n")
 
     # plot the distribution of pitch in the training and test dataset
     get_histogram(exp_path, "train", config['database']['train'])

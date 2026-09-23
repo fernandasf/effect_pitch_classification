@@ -1,0 +1,14 @@
+{
+  "input_csv": "../lists/test.csv",
+  
+  "effects": {
+      "reverb": {
+        "apply": true,
+        "values": [0.06, 0.09]
+      },
+      "white_noise": {
+        "apply": true,
+        "values": [10, 30]
+      }
+  }
+}
