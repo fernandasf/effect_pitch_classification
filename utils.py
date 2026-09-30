@@ -1,5 +1,5 @@
 import numpy as np
-#import librosa
+import librosa
 import matplotlib.pyplot as plt
 import IPython.display as ipd
 import tensorflow as tf
@@ -36,3 +36,22 @@ class UtilsIO():
             padding = max_samples - tf.shape(audio)[0]
             new_audio = tf.pad(audio, [[0, padding]])
         return new_audio
+
+    @staticmethod
+    def get_files(df):
+        files = list(df["filepaths"])
+        labels = list(df["words"])
+        return files, labels
+
+    @staticmethod
+    def get_test_set(test_ds):
+        test_audio = []
+        test_labels = []
+        
+        for audio, label in test_ds:
+            test_audio.append(audio.numpy())
+            test_labels.append(label.numpy())
+            
+        test_audio = np.array(test_audio)
+        test_labels = np.array(test_labels)
+        return test_audio, test_labels

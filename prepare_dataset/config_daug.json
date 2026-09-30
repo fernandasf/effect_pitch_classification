@@ -4,11 +4,11 @@
   "effects": {
       "reverb": {
         "apply": true,
-        "values": [0.06, 0.09]
+        "values": [0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
       },
       "white_noise": {
         "apply": true,
-        "values": [10, 30]
+        "values": [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
       }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "setup_1_spec_2",
+  "name": "setup_v1-0-0_gps_spec_pyin_clean_user1-0-0",
   "database": {
     "train": "lists/GPS_cmd_pyin_setup_1_train.csv",
     "val": "lists/GPS_cmd_pyin_setup_1_val.csv",

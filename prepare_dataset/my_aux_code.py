@@ -18,6 +18,15 @@ class MyAuxCode():
         plt.grid()
         plt.show()
 
+    @staticmethod
+    def plot_multi(input_files, sr=16000):
+            plt.figure(figsize=(12, 4))
+            if not isinstance(input_files[0], np.ndarray):
+                audios = [librosa.load(audio, sr=sr)[0] for audio in input_files]
+            for audio in audios:
+                plt.plot(audio, alpha=0.5)
+            plt.show()
+            
   
     def play_audio(self, audio, sr, normalize=False):
         return ipd.display(ipd.Audio(audio, rate=sr, normalize=normalize))

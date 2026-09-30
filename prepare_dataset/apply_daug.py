@@ -29,7 +29,8 @@ def apply_echo(file_path, output_path, delay_seconds=0.3, attenuation=0.5):
     # Normalize the audio back to 16-bit boundaries to prevent distortion
     output_signal_int = np.clip(output_signal, -32768, 32767).astype(np.int16)
     #return output_signal
-    wavfile.write(output_path, sample_rate, output_signal)
+    output_signal_norm = librosa.util.normalize(output_signal)
+    wavfile.write(output_path, sample_rate, output_signal_norm)
 
 
 def apply_white_noise(speech_path, output_path, target_snr_db):
@@ -46,6 +47,13 @@ def apply_white_noise(speech_path, output_path, target_snr_db):
     speech_mixed = speech + (scaling_factor * white_noise)
     speech_mixed_norm = librosa.util.normalize(speech_mixed)
     sf.write(output_path, speech_mixed_norm, sr)
+
+def normalize_audio(audio):
+    audio = audio.astype(np.float32)
+    peak = np.max(np.abs(audio))
+    if peak == 0:          # avoid division by zero on pure silence
+        return audio
+    return audio / peak
         
 
 if '__main__' == __name__:
@@ -76,10 +84,11 @@ if '__main__' == __name__:
                 output_filepath = organize_paths(filepath, value, effect_name)
                 apply_echo(filepath, output_filepath, delay_seconds=value, attenuation=0.2)
                 mixed_filepaths.append(output_filepath)
-        
-            df[f"mixed_filepath_{effect_name}"] = mixed_filepaths
+
+            df_new = df.copy()
+            df_new["filepaths"] = mixed_filepaths
             name = input_csv.replace(".csv", f"_{effect_name}.csv")
-            df.to_csv(name, index=False)
+            df_new.to_csv(name, index=False)
             print("Save csv: ", name)
             print("-"*80)
 
@@ -93,10 +102,11 @@ if '__main__' == __name__:
                 output_filepath = organize_paths(filepath, value, effect_name)
                 apply_white_noise(filepath, output_filepath, value)
                 mixed_filepaths.append(output_filepath)
-        
-            df[f"mixed_filepath_{effect_name}"] = mixed_filepaths
+
+            df_new = df.copy()
+            df_new["filepaths"] = mixed_filepaths
             name = input_csv.replace(".csv", f"_{effect_name}.csv")
-            df.to_csv(name, index=False)
+            df_new.to_csv(name, index=False)
             print("Save csv: ", name)
             print("-"*80)
 

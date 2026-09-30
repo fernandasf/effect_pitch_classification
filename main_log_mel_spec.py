@@ -223,8 +223,9 @@ if __name__ == '__main__':
     select_results_by_gender(df_test, "M")
 
     # plot the distribution of pitch in the training and test dataset
-    get_histogram(exp_path, "train", config['database']['train'])
-    get_histogram(exp_path, "test", config['database']['test'])
+    get_histogram(exp_path, config)
+
+    # TODO: add the vies metric
     
 
 
