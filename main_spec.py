@@ -1,5 +1,4 @@
 import os
-import pathlib
 import argparse
 
 import matplotlib.pyplot as plt
@@ -11,7 +10,9 @@ import json
 
 from tensorflow.keras import layers
 from tensorflow.keras import models
-from IPython import display
+
+from utils import UtilsIO
+from utils_metrics import UtilsMetrics
 
 AUTOTUNE = tf.data.AUTOTUNE
 
@@ -20,10 +21,6 @@ seed = 42
 tf.random.set_seed(seed)
 np.random.seed(seed)
 
-def get_files(df):
-    files = list(df["filepaths"])
-    labels = list(df["words"])
-    return files, labels
 
 def decode_audio(audio_binary):
   audio, _ = tf.audio.decode_wav(contents=audio_binary)
@@ -56,79 +53,13 @@ def preprocess_dataset(files, labels):
   output_ds = output_ds.map(map_func=get_spectrogram_and_label_id, num_parallel_calls=AUTOTUNE)
   return output_ds
 
-def get_test_set(test_ds):
-    test_audio = []
-    test_labels = []
-    
-    for audio, label in test_ds:
-      test_audio.append(audio.numpy())
-      test_labels.append(label.numpy())
-    
-    test_audio = np.array(test_audio)
-    test_labels = np.array(test_labels)
-    return test_audio, test_labels
-
-def get_results(test_audio, test_labels):
-    y_pred = np.argmax(model.predict(test_audio), axis=1)
-    y_true = test_labels
-    
-    test_acc = sum(y_pred == y_true) / len(y_true)
-    print(f'Test set accuracy: {test_acc:.0%}')
-    return y_true, y_pred, test_acc  
-
-def plot_curve(metrics, path):
-    plt.plot(history.epoch, metrics['loss'], metrics['val_loss'])
-    plt.legend(['loss', 'val_loss'])
-    plt.savefig(f"{path}/curve.png")
-
-def conf_matrix(y_true, y_pred, path):
-    confusion_mtx = tf.math.confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(confusion_mtx,
-                xticklabels=LABELS,
-                yticklabels=LABELS,
-                annot=True, fmt='g')
-    plt.xlabel('Prediction')
-    plt.ylabel('Label')
-    plt.savefig(f"{path}/confusion_matrix.png")
 
 def select_results_by_gender(df_test, x):
     df_test_x = df_test[df_test["genders"] == x]
-    test_files_x, test_labels_x = get_files(df_test_x)
-    test_audio_x, test_labels_x = get_test_set(preprocess_dataset(test_files_x, test_labels_x))
-    y_true_x, y_pred_x, test_acc_x = get_results(test_audio_x, test_labels_x)
+    test_files_x, test_labels_x = UtilsIO.get_files(df_test_x)
+    test_audio_x, test_labels_x = UtilsIO.get_test_set(preprocess_dataset(test_files_x, test_labels_x))
+    y_true_x, y_pred_x, test_acc_x = UtilsMetrics.get_results(test_audio_x, test_labels_x)
     return test_acc_x
-
-def get_histogram(exp_path, type_, input_path):
-    df = pd.read_csv(input_path)
-    plt.figure(figsize=(10, 4))
-    df["f0"].hist(bins=100, density=True)
-    df["f0"].plot.kde()
-    plt.title(f"Histogram - {type_}")
-    plt.savefig(f"{exp_path}/Histogram_{type_}.png")
-
-def save_results(df_test, test_files, ground_truth, predicted, name):
-    genres = []
-    F0 = []
-    keywords = []
-    for path in test_files:
-        genre = df_test[df_test['filepaths'].str.contains(path)]["genders"].iloc[0]
-        f0 = df_test[df_test['filepaths'].str.contains(path)]["f0"].iloc[0]
-        keyword = df_test[df_test['filepaths'].str.contains(path)]["words"].iloc[0]
-        genres.append(genre)
-        F0.append(f0)
-        keywords.append(keyword)
-    
-    dict_ = {
-        "path": test_files,
-        "keyword": keywords,
-        "genres": genres,
-        "F0": F0,
-        "ground_truth": ground_truth,
-        "predicted": predicted            
-    }
-    df = pd.DataFrame(dict_)
-    df.to_csv(name, index=False)
 
 
 if __name__ == '__main__':
@@ -155,9 +86,9 @@ if __name__ == '__main__':
     LABELS = list(df_train["words"].unique())
     num_labels = len(LABELS)
 
-    train_files, train_labels = get_files(df_train)
-    val_files, val_labels = get_files(df_val)
-    test_files, test_labels = get_files(df_test)
+    train_files, train_labels = UtilsIO.get_files(df_train)
+    val_files, val_labels = UtilsIO.get_files(df_val)
+    test_files, test_labels = UtilsIO.get_files(df_test)
     
     train_ds = preprocess_dataset(train_files, train_labels)
     val_ds = preprocess_dataset(val_files, val_labels)
@@ -216,7 +147,7 @@ if __name__ == '__main__':
     )
 
     metrics = history.history
-    plot_curve(metrics, exp_path)
+    UtilsMetrics.plot_curve(metrics, exp_path, history)
 
     model.save(f"{exp_path}/model.keras")
     
@@ -224,14 +155,14 @@ if __name__ == '__main__':
     print("________________ Test model ________________")
 
     test_ds = preprocess_dataset(test_files, test_labels)
-    test_audio, test_labels = get_test_set(test_ds)
+    test_audio, test_labels = UtilsIO.get_test_set(test_ds)
 
     print("General results: ")
-    y_true, y_pred, general_acc = get_results(test_audio, test_labels)
-    conf_matrix(y_true, y_pred, exp_path)
+    y_true, y_pred, general_acc = UtilsMetrics.get_results(test_audio, test_labels, model)
+    UtilsMetrics.conf_matrix(y_true, y_pred, exp_path, LABELS)
 
     name = f"{exp_path}/results_general_spec.csv"
-    save_results(df_test, test_files, test_labels, y_pred, name)
+    UtilsMetrics.save_results(df_test, test_files, test_labels, y_pred, name)
     
     print("Accuracy Female: ")
     acc_female = select_results_by_gender(df_test, "F")
@@ -245,8 +176,7 @@ if __name__ == '__main__':
         f.write(f"Male accuracy: {acc_male:.0%}\n")
 
     # plot the distribution of pitch in the training and test dataset
-    get_histogram(exp_path, "train", config['database']['train'])
-    get_histogram(exp_path, "test", config['database']['test'])
+    UtilsMetrics.get_histogram(exp_path, config)
     
 
 
